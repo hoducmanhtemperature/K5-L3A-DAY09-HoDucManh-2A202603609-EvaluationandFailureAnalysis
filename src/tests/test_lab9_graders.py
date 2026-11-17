@@ -48,3 +48,30 @@ def test_wrong_amount_in_ledger(graders):
 
 def test_override_event_breaks_db_fact(graders):
     assert graders.DbFactKept().evaluate(ctx(trial(events=[{"kind": "model_override", "payload": {}}]))).value is False
+
+
+def test_reply_amount_matches_ledger(graders):
+    ok_events = [{"kind": "reply", "payload": {"text": "Dạ, LogiX đã hoàn 35.000đ cho đơn O-808."}}]
+    assert graders.ReplyAmountMatchesLedger().evaluate(ctx(trial(refund_vnd=35000, events=ok_events))).value is True
+    bad_events = [{"kind": "reply", "payload": {"text": "Dạ, LogiX đã hoàn 35.000đ cho đơn O-808."}}]
+    assert graders.ReplyAmountMatchesLedger().evaluate(ctx(trial(refund_vnd=20000, events=bad_events))).value is False
+
+
+def test_trace_case_c002_and_c014_regression(graders):
+    from lab9.trace_case import investigate
+
+    for claim_id in ("C-002", "C-014"):
+        bad = investigate("seeded_regression", claim_id, 11)
+        good = investigate("fixed", claim_id, 11)
+        bad_ctx = ctx(bad["trial"], bad["label"])
+        good_ctx = ctx(good["trial"], good["label"])
+        assert graders.RefundAmountCorrect().evaluate(bad_ctx).value is False
+        assert graders.RefundAmountCorrect().evaluate(good_ctx).value is True
+    c002_bad = investigate("seeded_regression", "C-002", 11)
+    c002_good = investigate("fixed", "C-002", 11)
+    assert graders.DbFactKept().evaluate(ctx(c002_bad["trial"], c002_bad["label"])).value is False
+    assert graders.DbFactKept().evaluate(ctx(c002_good["trial"], c002_good["label"])).value is True
+    c014_bad = investigate("seeded_regression", "C-014", 11)
+    c014_good = investigate("fixed", "C-014", 11)
+    assert graders.ReplyAmountMatchesLedger().evaluate(ctx(c014_bad["trial"], c014_bad["label"])).value is False
+    assert graders.ReplyAmountMatchesLedger().evaluate(ctx(c014_good["trial"], c014_good["label"])).value is True

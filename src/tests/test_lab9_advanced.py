@@ -74,3 +74,21 @@ def test_slice_check_blocks_a_slice_below_floor():
     spec = dict(SPEC, slices=[{"name": "denial", "metric": "pass_rate", "min": 0.9, "blocking": True}])
     blocked, _ = gate.slice_check(_report(rows, {"pass_rate": 0.75}), base, spec)
     assert blocked == ["slice:denial/pass_rate"]
+
+
+def test_integrity_flags_duplicate_rows_and_evaluator_failures_and_relabeled_slices():
+    from lab9 import gate
+
+    base = _report(copy.deepcopy(ROWS), {"pass_rate": 1.0})
+    dup_rows = copy.deepcopy(ROWS)
+    dup_rows[-1] = copy.deepcopy(dup_rows[0])
+    assert gate.integrity_check(_report(dup_rows, {"pass_rate": 1.0}), base, SPEC)
+
+    ev_fail = _report(copy.deepcopy(ROWS), {"pass_rate": 1.0})
+    ev_fail["evaluator_failures"] = ["E-001@1:TrialPass:crash"]
+    assert gate.integrity_check(ev_fail, base, SPEC)
+
+    relabeled = copy.deepcopy(ROWS)
+    relabeled[0]["slices"] = []
+    assert gate.integrity_check(_report(relabeled, {"pass_rate": 1.0}), base, SPEC)
+
